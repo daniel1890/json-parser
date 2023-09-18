@@ -4,7 +4,7 @@ import Data.Char (isSpace, isDigit, isLetter)
 -- Test your tokenizer
 main :: IO ()
 main = do
-    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\"}"
+    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true}"
     --print $ tokenize jsonText
     let tokens = tokenize jsonText
     print ("Tokens: " ++ show tokens)
@@ -41,8 +41,12 @@ tokenize (x:xs)
     let (numStr, rest) = span isDigit (x:xs)
     in TNumber (read numStr) : tokenize rest
   | isLetter x =
-    let (str, rest) = span isLetter (x:xs)
-    in TString str : tokenize rest
+    let (str, rest) = span isLetter (x:xs) 
+    in
+      case str of
+        "true" -> TBool True : tokenize rest
+        "false" -> TBool False : tokenize rest
+        _ -> TString str : tokenize rest    
   | otherwise = error ("Ongeldige JSON syntax: onbekend karakter '" ++ [x] ++ "'")
 
 -- Maak datatype aan die JSON waardes representeert
@@ -101,15 +105,17 @@ parseObjectPairs tokens =
         TEndObject : rest -> ([], rest)
         TComma : rest -> parseObjectPairs rest
         TDoubleQuotes : TString key : TDoubleQuotes : TColon : rest ->
-            let (value, restAfterValue) = parseJSONValue rest -- Hier wordt de nieuwe functie parseJSONValue gebruikt om de waarde te matchen
+            let (value, restAfterValue) = parseJSONValue rest -- Hier wordt de functie parseJSONValue gebruikt om de waarde te matchen
                 (remainingPairs, restAfterPairs) = parseObjectPairs restAfterValue
             in ((key, value) : remainingPairs, restAfterPairs)
         _ -> error ("Ongeldige objectparen. Tokens: " ++ show tokens)
 
 -- Functie om JSONValue te parsen die onderdeel is van een key-value pair
+-- Values kan een string, number of boolean zijn
 parseJSONValue :: [Token] -> (JSONValue, [Token])
 parseJSONValue (TDoubleQuotes : TString s : TDoubleQuotes : rest) = (JSONString s, rest)
 parseJSONValue (TNumber n : rest) = (JSONNumber n, rest)
+parseJSONValue (TBool b : rest) = (JSONBool b, rest)
 parseJSONValue _ = error "Ongeldige JSON-value"
 
 -- Helper functie om JSON-boolean te parsen
