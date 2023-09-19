@@ -21,7 +21,7 @@ data Token = TString String
            | TDoubleQuotes
            | TColon
            | TComma
-           deriving (Show, Eq) -- deriving wordt gebruikt om 2 redenen: 1. weergeven van output in main, 2. vergelijken tussen verschillende tokens
+           deriving (Show) -- deriving wordt gebruikt om 2 redenen: 1. weergeven van output in main
 
 -- Een functie die de invoertekst tokeniseert.
 tokenize :: String -> [Token]
@@ -81,7 +81,10 @@ parseJSONObject tokens =
     case tokens of
         TStartObject : rest ->
             let (objectPairs, restAfterObject) = parseObjectPairs rest 0
-            in (JSONObject objectPairs, restAfterObject)
+            in
+                if null restAfterObject -- Als restAfterObject geen tokens meer bevat return pairs + rest
+                then (JSONObject objectPairs, restAfterObject)
+                else error ("Onverwachte tokens resterend na het parsen van JSON-object: " ++ show restAfterObject) -- Als nog tokens in de rest array zijn error
         _ -> error ("Ongeldig JSON-object. Tokens: " ++ show tokens)
 
 -- Functie om objectparen te parsen (key-value pairs)
@@ -90,9 +93,9 @@ parseJSONObject tokens =
 parseObjectPairs :: [Token] -> Int -> ([(String, JSONValue)], [Token])
 parseObjectPairs tokens commaCount =
     case tokens of
-        TEndObject : rest -> if commaCount < 0
+        TEndObject : rest -> if commaCount >= -1 && commaCount < 0
                              then ([], rest)
-                             else error ("Ongeldige objectparen. Te veel komma's. Commacount moet lager zijn dan 0, huidige commacount:" ++ show commaCount ++ ". Controleer voor teveel komma's in uw JSON.")
+                             else error ("Ongeldige objectparen. Te veel komma's. Commacount moet lager zijn dan 0 en groter dan -2, huidige commacount:" ++ show commaCount ++ ". Controleer voor teveel/weinig komma's in uw JSON input.")
         TComma : rest -> parseObjectPairs rest (commaCount + 1)
         TDoubleQuotes : TString key : TDoubleQuotes : TColon : rest ->
             let (value, restAfterValue) = parseJSONValue rest -- Hier wordt de functie parseJSONValue gebruikt om de waarde te matchen
