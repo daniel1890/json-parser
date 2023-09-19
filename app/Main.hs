@@ -4,7 +4,9 @@ import Data.Char (isSpace, isDigit, isLetter)
 -- Test your tokenizer
 main :: IO ()
 main = do
-    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true}"
+    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"adres\": \"null\"}"
+    let jsonTextWithArray = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"courses\": [\"APP\", \"SWA\", \"PS\"]}"
+
     --print $ tokenize jsonText
     let tokens = tokenize jsonText
     print ("Tokens: " ++ show tokens)
@@ -41,12 +43,13 @@ tokenize (x:xs)
     let (numStr, rest) = span isDigit (x:xs)
     in TNumber (read numStr) : tokenize rest
   | isLetter x =
-    let (str, rest) = span isLetter (x:xs) 
+    let (str, rest) = span isLetter (x:xs)
     in
       case str of
         "true" -> TBool True : tokenize rest
         "false" -> TBool False : tokenize rest
-        _ -> TString str : tokenize rest    
+        "null" -> TNull : tokenize rest
+        _ -> TString str : tokenize rest
   | otherwise = error ("Ongeldige JSON syntax: onbekend karakter '" ++ [x] ++ "'")
 
 -- Maak datatype aan die JSON waardes representeert
@@ -59,37 +62,24 @@ data JSONValue
     | JSONNull
     deriving (Show)
 
--- Helper functie om een JSONString te parsen
+-- Functie om een JSONString te parsen
 parseJSONString :: [Token] -> (JSONValue, [Token])
 parseJSONString (TString s : rest) = (JSONString s, rest)
 parseJSONString _ = error "Expected a JSON string"
 
--- Helper functie om een JSONNumber to parsen
+-- Functie om een JSONNumber to parsen
 parseJSONNumber :: [Token] -> (JSONValue, [Token])
 parseJSONNumber (TNumber n : rest) = (JSONNumber n, rest)
 parseJSONNumber _ = error "Expected a JSON number"
 
--- Helper functie voor het parsen van een JSON-array
-parseJSONArray :: [Token] -> ([JSONValue], [Token])
-parseJSONArray tokens =
+-- Functie om JSONBool te parsen
+parseJSONBool :: [Token] -> (JSONValue, [Token])
+parseJSONBool tokens =
     case tokens of
-        TStartArray : rest ->
-            let (elements, restAfterArray) = parseArrayElements rest
-            in (elements, restAfterArray)
-        _ -> error "Ongeldige JSON-array"
+        TBool b : rest -> (JSONBool b, rest)
+        _ -> error "Verwachtte een JSON-boolean"
 
--- Helper functie om array-elementen te parsen
-parseArrayElements :: [Token] -> ([JSONValue], [Token])
-parseArrayElements tokens =
-    case tokens of
-        TEndArray : rest -> ([], rest)
-        TComma : rest -> parseArrayElements rest
-        _ ->
-            let (element, restAfterElement) = parseJSON tokens
-                (remainingElements, restAfterElements) = parseArrayElements restAfterElement
-            in (element : remainingElements, restAfterElements)
-
--- Helper functie om een JSON-object te parsen
+-- Functie om een JSONObject te parsen
 parseJSONObject :: [Token] -> (JSONValue, [Token])
 parseJSONObject tokens =
     case tokens of
@@ -98,7 +88,7 @@ parseJSONObject tokens =
             in (JSONObject objectPairs, restAfterObject)
         _ -> error ("Ongeldig JSON-object. Tokens: " ++ show tokens)
 
--- Helper functie om objectparen te parsen (key-value pairs)
+-- Functie om objectparen te parsen (key-value pairs)
 parseObjectPairs :: [Token] -> ([(String, JSONValue)], [Token])
 parseObjectPairs tokens =
     case tokens of
@@ -111,20 +101,37 @@ parseObjectPairs tokens =
         _ -> error ("Ongeldige objectparen. Tokens: " ++ show tokens)
 
 -- Functie om JSONValue te parsen die onderdeel is van een key-value pair
--- Values kan een string, number of boolean zijn
+-- Value kan een string, number of boolean zijn
 parseJSONValue :: [Token] -> (JSONValue, [Token])
-parseJSONValue (TDoubleQuotes : TString s : TDoubleQuotes : rest) = (JSONString s, rest)
-parseJSONValue (TNumber n : rest) = (JSONNumber n, rest)
-parseJSONValue (TBool b : rest) = (JSONBool b, rest)
-parseJSONValue _ = error "Ongeldige JSON-value"
-
--- Helper functie om JSON-boolean te parsen
-parseJSONBool :: [Token] -> (JSONValue, [Token])
-parseJSONBool tokens =
+parseJSONValue tokens =
     case tokens of
-        TBool b : rest -> (JSONBool b, rest)
-        _ -> error "Verwachtte een JSON-boolean"
+        (TDoubleQuotes : TString s : TDoubleQuotes : rest) -> parseJSONString tokens
+        (TNumber n : rest) -> (JSONNumber n, rest)
+        (TBool b : rest) -> (JSONBool b, rest)
+        (TDoubleQuotes : TNull : TDoubleQuotes : rest) -> (JSONNull, rest)
+        _ -> error ("Ongeldige JSON-value" ++ show tokens)
 
+-- Main JSON parsing functie
+parseJSON :: [Token] -> JSONValue
+parseJSON tokens =
+  case tokens of
+    (TString s) : rest -> 
+        let (string, restAfterString) = parseJSONString tokens
+        in string
+    (TNumber n) : rest -> 
+        let (num, restAfterNum) = parseJSONNumber tokens
+        in num
+    TNull : rest -> JSONNull
+    (TStartObject : rest) ->
+        let (object, restAfterObject) = parseJSONObject tokens
+        in object
+    (TBool _) : rest ->
+        let (bool, restAfterBool) = parseJSONBool tokens
+        in bool
+    t -> error ("Ongeldig JSON" ++ show t)
+
+
+{- JSON ARRAY PARSING
 -- Main JSON parsing function
 parseJSON :: [Token] -> (JSONValue, [Token])
 parseJSON tokens =
@@ -132,7 +139,7 @@ parseJSON tokens =
     (TString s) : rest -> (JSONString s, rest)
     (TNumber n) : rest -> (JSONNumber n, rest)
     (TStartArray : rest) ->
-        let (array, restAfterArray) = parseJSONArray rest
+        let (array, restAfterArray) = parseJSONArray tokens
         in (JSONArray array, restAfterArray)
     (TStartObject : rest) ->
         let (object, restAfterObject) = parseJSONObject tokens  -- Geef tokens in plaats van rest door
@@ -142,3 +149,64 @@ parseJSON tokens =
         in (bool, restAfterBool)
     -- Voeg andere gevallen toe voor null en andere elementen
     t -> error ("Ongeldig JSON" ++ show t)
+
+
+-- Helper functie voor het parsen van een JSON-array
+parseJSONArray :: [Token] -> ([JSONValue], [Token])
+parseJSONArray tokens =
+    case tokens of
+        TStartArray : rest ->
+            let (elements, restAfterArray) = parseArrayElements rest
+            in (elements, restAfterArray)
+        _ -> error ("Ongeldige JSON-array" ++ show tokens)
+
+-- Helper functie om array-elementen te parsen
+parseArrayElements :: [Token] -> ([JSONValue], [Token])
+parseArrayElements tokens =
+    case tokens of
+        TEndArray : rest -> ([], rest)
+        TComma : rest -> parseArrayElements rest
+        _ ->
+            let (element, restAfterElement) = parseJSON tokens
+                (remainingElements, restAfterElements) = parseArrayElements restAfterElement
+            in (element : remainingElements, restAfterElements)
+
+-- Functie om JSONValue te parsen die onderdeel is van een key-value pair
+-- Values kan een string, number of boolean zijn
+parseJSONValue :: [Token] -> (JSONValue, [Token])
+parseJSONValue tokens =
+    case tokens of
+        (TDoubleQuotes : TString s : TDoubleQuotes : rest) -> (JSONString s, rest)
+        (TNumber n : rest) -> (JSONNumber n, rest)
+        (TBool b : rest) -> (JSONBool b, rest)
+        TStartArray : rest ->
+            let (array, restAfterArray) = parseJSONArray tokens
+            in (JSONArray array, TStartArray : restAfterArray)
+        _ -> error ("Ongeldige JSON-value" ++ show tokens)
+-}
+
+{- parseJSON functie met empty array op einde []
+-- Main JSON parsing functie
+parseJSON :: [Token] -> (JSONValue, [Token])
+parseJSON tokens =
+  case tokens of
+    (TString s) : rest -> 
+        let (string, restAfterString) = parseJSONString tokens
+        in (string, restAfterString)
+    (TNumber n) : rest -> 
+        let (num, restAfterNum) = parseJSONNumber tokens
+        in (num, restAfterNum)
+    TNull : rest -> (JSONNull, rest)
+    (TStartObject : rest) ->
+        let (object, restAfterObject) = parseJSONObject tokens  -- Geef tokens in plaats van rest door
+        in (object, restAfterObject)
+    (TBool _) : rest ->
+        let (bool, restAfterBool) = parseJSONBool tokens
+        in (bool, restAfterBool)
+    t -> error ("Ongeldig JSON" ++ show t)
+
+(JSONObject [("name",JSONString "John"),("age",JSONNumber 30),("school",JSONString "HAN"),("isHanStudent",JSONBool True)],[])
+
+Nieuwe -> JSONObject [("name",JSONString "John"),("age",JSONNumber 30),("school",JSONString "HAN"),("isHanStudent",JSONBool True)]
+
+-}
