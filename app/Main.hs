@@ -4,7 +4,7 @@ import Data.Char (isSpace, isDigit, isLetter)
 -- Test your tokenizer
 main :: IO ()
 main = do
-    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"adres\": \"null\"}"
+    let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"adres\": null}"
     let jsonTextWithArray = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"courses\": [\"APP\", \"SWA\", \"PS\"]}"
 
     --print $ tokenize jsonText
@@ -64,20 +64,23 @@ data JSONValue
 
 -- Functie om een JSONString te parsen
 parseJSONString :: [Token] -> (JSONValue, [Token])
-parseJSONString (TString s : rest) = (JSONString s, rest)
-parseJSONString _ = error "Expected a JSON string"
+parseJSONString (TDoubleQuotes : TString s : TDoubleQuotes : rest) = (JSONString s, rest)
+parseJSONString e = error ("Verwachtte een JSON string. Foutive token: " ++ show e)
 
 -- Functie om een JSONNumber to parsen
 parseJSONNumber :: [Token] -> (JSONValue, [Token])
 parseJSONNumber (TNumber n : rest) = (JSONNumber n, rest)
-parseJSONNumber _ = error "Expected a JSON number"
+parseJSONNumber e = error ("Verwachtte een JSON number. Foutive token: " ++ show e)
 
 -- Functie om JSONBool te parsen
 parseJSONBool :: [Token] -> (JSONValue, [Token])
-parseJSONBool tokens =
-    case tokens of
-        TBool b : rest -> (JSONBool b, rest)
-        _ -> error "Verwachtte een JSON-boolean"
+parseJSONBool (TBool b : rest) = (JSONBool b, rest)
+parseJSONBool e = error ("Verwachtte een JSON boolean. Foutive token: " ++ show e)
+
+-- Functie om een JSONNull to parsen
+parseJSONNull :: [Token] -> (JSONValue, [Token])
+parseJSONNull (TNull : rest) = (JSONNull, rest)
+parseJSONNull e = error ("Verwachtte een JSON null. Foutive token: " ++ show e)
 
 -- Functie om een JSONObject te parsen
 parseJSONObject :: [Token] -> (JSONValue, [Token])
@@ -105,29 +108,27 @@ parseObjectPairs tokens =
 parseJSONValue :: [Token] -> (JSONValue, [Token])
 parseJSONValue tokens =
     case tokens of
-        (TDoubleQuotes : TString s : TDoubleQuotes : rest) -> parseJSONString tokens
-        (TNumber n : rest) -> (JSONNumber n, rest)
-        (TBool b : rest) -> (JSONBool b, rest)
-        (TDoubleQuotes : TNull : TDoubleQuotes : rest) -> (JSONNull, rest)
+        (TDoubleQuotes : TString s : TDoubleQuotes : rest) -> 
+            let (JSONString s, rest) = parseJSONString tokens
+            in (JSONString s, rest)
+        (TNumber n : rest) -> 
+            let (JSONNumber n, rest) = parseJSONNumber tokens
+            in (JSONNumber n, rest)
+        (TBool b : rest) -> 
+            let (JSONBool b, rest) = parseJSONBool tokens
+            in (JSONBool b, rest)
+        (TNull : rest) -> 
+            let (JSONNull, rest) = parseJSONNull tokens
+            in (JSONNull, rest)
         _ -> error ("Ongeldige JSON-value" ++ show tokens)
 
 -- Main JSON parsing functie
 parseJSON :: [Token] -> JSONValue
 parseJSON tokens =
   case tokens of
-    (TString s) : rest -> 
-        let (string, restAfterString) = parseJSONString tokens
-        in string
-    (TNumber n) : rest -> 
-        let (num, restAfterNum) = parseJSONNumber tokens
-        in num
-    TNull : rest -> JSONNull
     (TStartObject : rest) ->
         let (object, restAfterObject) = parseJSONObject tokens
         in object
-    (TBool _) : rest ->
-        let (bool, restAfterBool) = parseJSONBool tokens
-        in bool
     t -> error ("Ongeldig JSON" ++ show t)
 
 
