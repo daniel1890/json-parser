@@ -5,12 +5,10 @@ import Data.Char (isSpace, isDigit, isLetter)
 main :: IO ()
 main = do
     let jsonText = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"adres\": null}"
-    let jsonTextWithArray = "{\"name\": \"John\", \"age\": 30, \"school\": \"HAN\", \"isHanStudent\": true, \"courses\": [\"APP\", \"SWA\", \"PS\"]}"
 
-    --print $ tokenize jsonText
     let tokens = tokenize jsonText
     print ("Tokens: " ++ show tokens)
-    let parsedJSON = parseJSON tokens
+    let parsedJSON = parseJSONObject tokens
     print parsedJSON
 
 -- Begin met het definiëren van een datatype voor tokens.
@@ -20,8 +18,6 @@ data Token = TString String
            | TNull
            | TStartObject
            | TEndObject
-           | TStartArray
-           | TEndArray
            | TDoubleQuotes
            | TColon
            | TComma
@@ -34,8 +30,6 @@ tokenize (x:xs)
   | isSpace x = tokenize xs
   | x == '{' = TStartObject : tokenize xs
   | x == '}' = TEndObject : tokenize xs
-  | x == '[' = TStartArray : tokenize xs
-  | x == ']' = TEndArray : tokenize xs
   | x == ',' = TComma : tokenize xs
   | x == '"' = TDoubleQuotes : tokenize xs
   | x == ':' = TColon : tokenize xs
@@ -55,7 +49,6 @@ tokenize (x:xs)
 -- Maak datatype aan die JSON waardes representeert
 data JSONValue
     = JSONObject [(String, JSONValue)]
-    | JSONArray [JSONValue]
     | JSONString String
     | JSONNumber Integer
     | JSONBool Bool
@@ -87,24 +80,28 @@ parseJSONObject :: [Token] -> (JSONValue, [Token])
 parseJSONObject tokens =
     case tokens of
         TStartObject : rest ->
-            let (objectPairs, restAfterObject) = parseObjectPairs rest
+            let (objectPairs, restAfterObject) = parseObjectPairs rest 0
             in (JSONObject objectPairs, restAfterObject)
         _ -> error ("Ongeldig JSON-object. Tokens: " ++ show tokens)
 
 -- Functie om objectparen te parsen (key-value pairs)
-parseObjectPairs :: [Token] -> ([(String, JSONValue)], [Token])
-parseObjectPairs tokens =
+-- Gebruik commaCount variabele om bij te houden hoeveel komma's in de JSON staan om key-pair values te scheiden
+-- commaCount moet altijd lager zijn dan 0 anders error
+parseObjectPairs :: [Token] -> Int -> ([(String, JSONValue)], [Token])
+parseObjectPairs tokens commaCount =
     case tokens of
-        TEndObject : rest -> ([], rest)
-        TComma : rest -> parseObjectPairs rest
+        TEndObject : rest -> if commaCount < 0
+                             then ([], rest)
+                             else error ("Ongeldige objectparen. Te veel komma's. Commacount moet lager zijn dan 0, huidige commacount:" ++ show commaCount ++ ". Controleer voor teveel komma's in uw JSON.")
+        TComma : rest -> parseObjectPairs rest (commaCount + 1)
         TDoubleQuotes : TString key : TDoubleQuotes : TColon : rest ->
             let (value, restAfterValue) = parseJSONValue rest -- Hier wordt de functie parseJSONValue gebruikt om de waarde te matchen
-                (remainingPairs, restAfterPairs) = parseObjectPairs restAfterValue
+                (remainingPairs, restAfterPairs) = parseObjectPairs restAfterValue (commaCount - 1)
             in ((key, value) : remainingPairs, restAfterPairs)
-        _ -> error ("Ongeldige objectparen. Tokens: " ++ show tokens)
+        e -> error ("Ongeldige objectparen. Tokens: " ++ show e)
 
 -- Functie om JSONValue te parsen die onderdeel is van een key-value pair
--- Value kan een string, number of boolean zijn
+-- Value kan een string, number, null of boolean zijn
 parseJSONValue :: [Token] -> (JSONValue, [Token])
 parseJSONValue tokens =
     case tokens of
@@ -120,16 +117,16 @@ parseJSONValue tokens =
         (TNull : rest) -> 
             let (JSONNull, rest) = parseJSONNull tokens
             in (JSONNull, rest)
-        _ -> error ("Ongeldige JSON-value" ++ show tokens)
+        e -> error ("Ongeldige JSON-value" ++ show e)
 
--- Main JSON parsing functie
-parseJSON :: [Token] -> JSONValue
-parseJSON tokens =
-  case tokens of
-    (TStartObject : rest) ->
-        let (object, restAfterObject) = parseJSONObject tokens
-        in object
-    t -> error ("Ongeldig JSON" ++ show t)
+-- -- Main JSON parsing functie
+-- parseJSON :: [Token] -> JSONValue
+-- parseJSON tokens =
+--   case tokens of
+--     (TStartObject : rest) ->
+--         let (object, restAfterObject) = parseJSONObject tokens
+--         in object
+--     t -> error ("Ongeldig JSON" ++ show t)
 
 
 {- JSON ARRAY PARSING
