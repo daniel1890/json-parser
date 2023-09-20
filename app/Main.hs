@@ -4,12 +4,12 @@ import System.IO
 
 main :: IO ()
 main = do
-    -- -- Test 1: Geldige JSON
-    -- jsonText1 <- readJSONFromFile "app/json-files/valid1.json"
-    -- let tokens1 = tokenize jsonText1
-    -- putStrLn ("Tokens (Test 1): " ++ show tokens1)
-    -- let parsedJSON1 = parseJSONObject tokens1
-    -- putStrLn ("Parsed JSON (Test 1): " ++ show parsedJSON1)
+    -- Test 1: Geldige JSON
+    jsonText1 <- readJSONFromFile "app/json-files/valid1.json"
+    let tokens1 = tokenize jsonText1
+    putStrLn ("Tokens (Test 1): " ++ show tokens1)
+    let parsedJSON1 = parseJSONObject tokens1
+    putStrLn ("Parsed JSON (Test 1): " ++ show parsedJSON1)
 
     -- -- Test 2: JSON met dubbele komma's
     -- jsonText2 <- readJSONFromFile "app/json-files/invalid1.json"
@@ -32,12 +32,12 @@ main = do
     -- let parsedJSON4 = parseJSONObject tokens4
     -- putStrLn ("Parsed JSON (Test 4): " ++ show parsedJSON4)
 
-    -- Test 5: JSON met ontbrekende { om object te openen
-    jsonText5 <- readJSONFromFile "app/json-files/invalid5.json"
-    let tokens5 = tokenize jsonText5
-    putStrLn ("Tokens (Test 5): " ++ show tokens5)
-    let parsedJSON5 = parseJSONObject tokens5
-    putStrLn ("Parsed JSON (Test 5): " ++ show parsedJSON5)
+    -- -- Test 5: JSON met ontbrekende { om object te openen
+    -- jsonText5 <- readJSONFromFile "app/json-files/invalid5.json"
+    -- let tokens5 = tokenize jsonText5
+    -- putStrLn ("Tokens (Test 5): " ++ show tokens5)
+    -- let parsedJSON5 = parseJSONObject tokens5
+    -- putStrLn ("Parsed JSON (Test 5): " ++ show parsedJSON5)
 
     -- -- Test 6: JSON met ongeldige nummernotatie (ontbreekt decimaalteken voor een getal)
     -- jsonText6 <- readJSONFromFile "app/json-files/invalid3.json"
