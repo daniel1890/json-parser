@@ -2,50 +2,49 @@ module Main where
 import Data.Char (isSpace, isDigit, isLetter)
 import System.IO
 
--- Test your tokenizer
 main :: IO ()
 main = do
-    -- Test 1: JSON met dubbele komma's
-    jsonText1 <- readJSONFromFile "app/json-files/invalid1.json"
-    let tokens1 = tokenize jsonText1
-    putStrLn ("Tokens (Test 1): " ++ show tokens1)
-    let parsedJSON1 = parseJSONObject tokens1
-    putStrLn ("Parsed JSON (Test 1): " ++ show parsedJSON1)
+    -- -- Test 1: Geldige JSON
+    -- jsonText1 <- readJSONFromFile "app/json-files/valid1.json"
+    -- let tokens1 = tokenize jsonText1
+    -- putStrLn ("Tokens (Test 1): " ++ show tokens1)
+    -- let parsedJSON1 = parseJSONObject tokens1
+    -- putStrLn ("Parsed JSON (Test 1): " ++ show parsedJSON1)
 
-    -- -- Test 2: JSON met ongeldig } teken in het midden
-    jsonText2 <- readJSONFromFile "app/json-files/invalid2.json"
-    let tokens2 = tokenize jsonText2
-    putStrLn ("Tokens (Test 2): " ++ show tokens2)
-    let parsedJSON2 = parseJSONObject tokens2
-    putStrLn ("Parsed JSON (Test 1): " ++ show parsedJSON2)
+    -- -- Test 2: JSON met dubbele komma's
+    -- jsonText2 <- readJSONFromFile "app/json-files/invalid1.json"
+    -- let tokens2 = tokenize jsonText2
+    -- putStrLn ("Tokens (Test 2): " ++ show tokens2)
+    -- let parsedJSON2 = parseJSONObject tokens2
+    -- putStrLn ("Parsed JSON (Test 2): " ++ show parsedJSON2)
 
-    -- -- Test 3: JSON met ongeldige nummernotatie (ontbreekt decimaalteken voor een getal)
-    jsonText3 <- readJSONFromFile "app/json-files/invalid3.json"
-    let tokens3 = tokenize jsonText3
-    putStrLn ("Tokens (Test 3): " ++ show tokens3)
-    let parsedJSON3 = parseJSONObject tokens3
-    putStrLn ("Parsed JSON (Test 3): " ++ show parsedJSON3)
+    -- -- Test 3: JSON met ongeldig } teken in het midden
+    -- jsonText3 <- readJSONFromFile "app/json-files/invalid2.json"
+    -- let tokens3 = tokenize jsonText3
+    -- putStrLn ("Tokens (Test 3): " ++ show tokens3)
+    -- let parsedJSON3 = parseJSONObject tokens3
+    -- putStrLn ("Parsed JSON (Test 3): " ++ show parsedJSON3)
 
-    -- -- Test 4: JSON met ontbrekende dubbele aanhalingstekens rond een sleutel
-    jsonText4 <- readJSONFromFile "app/json-files/invalid4.json"
-    let tokens4 = tokenize jsonText4
-    putStrLn ("Tokens (Test 4): " ++ show tokens4)
-    let parsedJSON4 = parseJSONObject tokens4
-    putStrLn ("Parsed JSON (Test 4): " ++ show parsedJSON4)
+    -- -- Test 4: JSON met ontbrekende dubbele aanhalingstekens rond een key
+    -- jsonText4 <- readJSONFromFile "app/json-files/invalid4.json"
+    -- let tokens4 = tokenize jsonText4
+    -- putStrLn ("Tokens (Test 4): " ++ show tokens4)
+    -- let parsedJSON4 = parseJSONObject tokens4
+    -- putStrLn ("Parsed JSON (Test 4): " ++ show parsedJSON4)
 
-    -- -- Test 5: JSON met ontbrekende { om object te openen
+    -- Test 5: JSON met ontbrekende { om object te openen
     jsonText5 <- readJSONFromFile "app/json-files/invalid5.json"
     let tokens5 = tokenize jsonText5
     putStrLn ("Tokens (Test 5): " ++ show tokens5)
     let parsedJSON5 = parseJSONObject tokens5
     putStrLn ("Parsed JSON (Test 5): " ++ show parsedJSON5)
 
-    -- -- Test 6: Geldige JSON
-    jsonText6 <- readJSONFromFile "app/json-files/valid1.json"
-    let tokens6 = tokenize jsonText6
-    putStrLn ("Tokens (Test 6): " ++ show tokens6)
-    let parsedJSON6 = parseJSONObject tokens6
-    putStrLn ("Parsed JSON (Test 6): " ++ show parsedJSON6)
+    -- -- Test 6: JSON met ongeldige nummernotatie (ontbreekt decimaalteken voor een getal)
+    -- jsonText6 <- readJSONFromFile "app/json-files/invalid3.json"
+    -- let tokens6 = tokenize jsonText6
+    -- putStrLn ("Tokens (Test 6): " ++ show tokens6)
+    -- let parsedJSON6 = parseJSONObject tokens6
+    -- putStrLn ("Parsed JSON (Test 6): " ++ show parsedJSON6)
 
 -- Helper functie om JSON in te lezen van een .json bestand
 readJSONFromFile :: FilePath -> IO String
@@ -127,22 +126,22 @@ parseJSONObject tokens =
                 else error ("Onverwachte tokens resterend na het parsen van JSON-object: " ++ show restAfterObject) -- Als nog tokens in de rest array zijn error
         _ -> error ("Ongeldig JSON-object. Tokens: " ++ show tokens)
 
--- Functie om objectparen te parsen (key-value pairs)
+-- Functie om key-value pairs te parsen 
 -- Gebruik commaCount variabele om bij te houden hoeveel komma's in de JSON staan om key-pair values te scheiden
--- commaCount moet altijd lager zijn dan 0 anders error
+-- commaCount moet bij return altijd lager zijn dan 0, groter dan -2 anders error
 parseObjectPairs :: [Token] -> Int -> ([(String, JSONValue)], [Token])
 parseObjectPairs tokens commaCount =
     case tokens of
         TEndObject : rest -> if commaCount >= -1 && commaCount < 0
                              then ([], rest)
-                             else error ("Ongeldige objectparen. Te veel komma's. Commacount moet lager zijn dan 0 en groter dan -2, huidige commacount:"
+                             else error ("Commacount moet lager zijn dan 0 en groter dan -2, huidige commacount:"
                              ++ show commaCount ++ ". Controleer voor teveel/weinig komma's in uw JSON input.")
         TComma : rest -> parseObjectPairs rest (commaCount + 1)
         TDoubleQuotes : TString key : TDoubleQuotes : TColon : rest ->
-            let (value, restAfterValue) = parseJSONValue rest -- Hier wordt de functie parseJSONValue gebruikt om de waarde te matchen
+            let (value, restAfterValue) = parseJSONValue rest
                 (remainingPairs, restAfterPairs) = parseObjectPairs restAfterValue (commaCount - 1)
             in ((key, value) : remainingPairs, restAfterPairs)
-        e -> error ("Ongeldige objectparen. Tokens: " ++ show e)
+        e -> error ("Ongeldige key-value pairs. Tokens: " ++ show e)
 
 -- Functie om JSONValue te parsen die onderdeel is van een key-value pair
 -- Value kan een string, number, null of boolean zijn
