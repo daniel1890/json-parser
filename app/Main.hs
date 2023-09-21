@@ -60,7 +60,7 @@ data Token = TString String
            | TDoubleQuotes
            | TColon
            | TComma
-           deriving (Show) -- deriving wordt gebruikt om 2 redenen: 1. weergeven van output in main
+           deriving (Show) -- deriving show wordt gebruikt om weergeven van output in main
 
 -- Een functie die de invoertekst tokeniseert.
 tokenize :: String -> [Token]
@@ -115,14 +115,14 @@ parseJSONNull (TNull : rest) = (JSONNull, rest)
 parseJSONNull e = error ("Verwachtte een JSON null. Foutive token: " ++ show e)
 
 -- Functie om een JSONObject te parsen
-parseJSONObject :: [Token] -> (JSONValue, [Token])
+parseJSONObject :: [Token] -> JSONValue
 parseJSONObject tokens =
     case tokens of
         TStartObject : rest ->
             let (objectPairs, restAfterObject) = parseObjectPairs rest 0
             in
-                if null restAfterObject -- Als restAfterObject geen tokens meer bevat return pairs + rest
-                then (JSONObject objectPairs, restAfterObject)
+                if null restAfterObject
+                then JSONObject objectPairs
                 else error ("Onverwachte tokens resterend na het parsen van JSON-object: " ++ show restAfterObject) -- Als nog tokens in de rest array zijn error
         _ -> error ("Ongeldig JSON-object. Tokens: " ++ show tokens)
 
